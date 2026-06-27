@@ -1,15 +1,16 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
 FROM $BUILD_FROM
 
 # Install system deps: ffmpeg for frame extraction, inotify-tools for file watching
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     inotify-tools \
     python3 \
-    py3-pip \
-    py3-numpy \
+    python3-pip \
+    python3-numpy \
     wget \
-    ca-certificates
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
 RUN pip3 install --no-cache-dir --break-system-packages \
