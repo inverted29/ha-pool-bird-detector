@@ -50,7 +50,11 @@ def extract_frame(video_path: str, offset_seconds: int, out_path: str) -> bool:
     except ValueError:
         duration = float("inf")
 
-    seek = min(offset_seconds, max(0, int(duration) - 1))
+    # Use middle of clip if offset would overshoot, or if offset is 0
+    if offset_seconds == 0 or offset_seconds >= duration:
+        seek = max(0, int(duration / 2))
+    else:
+        seek = min(offset_seconds, max(0, int(duration) - 1))
 
     result = subprocess.run(
         [
@@ -115,6 +119,10 @@ def run_inference(
         label_idx = int(class_ids[i])
         label = labels[label_idx] if label_idx < len(labels) else f"class_{label_idx}"
         detections.append({"label": label, "confidence": round(score, 4), "box": boxes[i].tolist()})
+
+    # Always log top-5 raw scores for debugging
+    top5 = sorted(zip(scores[:count], [labels[int(c)] if int(c) < len(labels) else f"class_{int(c)}" for c in class_ids[:count]]), reverse=True)[:5]
+    log.info("Top detections: %s", [(label, round(score, 3)) for score, label in top5])
 
     return detections
 
