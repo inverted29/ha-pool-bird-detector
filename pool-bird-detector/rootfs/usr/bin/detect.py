@@ -188,6 +188,17 @@ def publish_discovery(client: mqtt.Client, state_topic: str, manufacturer: str =
                 "device": device,
             },
         ),
+        (
+            "homeassistant/sensor/pool_bird_detector/total_detections/config",
+            {
+                "name": "Pool Bird Total Detections",
+                "unique_id": "pool_bird_detector_total_detections",
+                "state_topic": "pool_motion/bird_count",
+                "icon": "mdi:duck",
+                "state_class": "total_increasing",
+                "device": device,
+            },
+        ),
     ]
 
     for topic, payload in configs:
@@ -195,10 +206,31 @@ def publish_discovery(client: mqtt.Client, state_topic: str, manufacturer: str =
         log.info("Discovery published: %s", topic)
 
 
+COUNT_PATH = "/data/bird_count.json"
+
+
+def load_count() -> int:
+    try:
+        with open(COUNT_PATH) as f:
+            return int(json.load(f).get("total", 0))
+    except (FileNotFoundError, ValueError, KeyError):
+        return 0
+
+
+def save_count(count: int) -> None:
+    with open(COUNT_PATH, "w") as f:
+        json.dump({"total": count}, f)
+
+
 def publish_result(client: mqtt.Client, topic: str, video_path: str, detections: list[dict]):
     bird_detections = [d for d in detections if d["label"].lower() in BIRD_LABELS]
     has_bird = len(bird_detections) > 0
     top_confidence = max((d["confidence"] for d in bird_detections), default=0.0)
+
+    if has_bird:
+        count = load_count() + 1
+        save_count(count)
+        client.publish("pool_motion/bird_count", str(count), retain=True)
 
     payload = {
         "file": os.path.basename(video_path),
@@ -337,6 +369,11 @@ def main():
     log.info("MQTT connected to %s:%d", args.mqtt_host, args.mqtt_port)
 
     publish_discovery(client, args.mqtt_topic)
+
+    # Republish current count so HA has it immediately on (re)start
+    current_count = load_count()
+    client.publish("pool_motion/bird_count", str(current_count), retain=True)
+    log.info("Bird count on startup: %d", current_count)
 
     try:
         watch_and_process(
