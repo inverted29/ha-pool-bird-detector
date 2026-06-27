@@ -120,9 +120,10 @@ def run_inference(
         label = labels[label_idx] if label_idx < len(labels) else f"class_{label_idx}"
         detections.append({"label": label, "confidence": round(score, 4), "box": boxes[i].tolist()})
 
-    # Always log top-5 raw scores for debugging
-    top5 = sorted(zip(scores[:count], [labels[int(c)] if int(c) < len(labels) else f"class_{int(c)}" for c in class_ids[:count]]), reverse=True)[:5]
-    log.info("Top detections: %s", [(label, round(score, 3)) for score, label in top5])
+    # Log all detections above 0.05 regardless of threshold, for debugging
+    debug = sorted(zip(scores[:count], [labels[int(c)] if int(c) < len(labels) else f"class_{int(c)}" for c in class_ids[:count]]), reverse=True)
+    visible = [(label, round(s, 3)) for s, label in debug if s >= 0.05]
+    log.info("All detections (>=0.05): %s", visible if visible else "none")
 
     return detections
 
@@ -185,28 +186,53 @@ def watch_and_process(
         # Small delay — camera may still be flushing
         time.sleep(1)
 
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            frame_path = tmp.name
-
         try:
-            if not extract_frame(video_path, frame_offset, frame_path):
-                log.warning("Frame extraction failed for %s", filename)
-                publish_result(mqtt_client, mqtt_topic, video_path, [])
-                continue
+            # Get clip duration to sample multiple frames
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+                capture_output=True, text=True,
+            )
+            try:
+                duration = float(probe.stdout.strip())
+            except ValueError:
+                duration = 10.0
 
-            frame = preprocess_frame(frame_path, (w, h))
-            detections = run_inference(interpreter, frame, labels, confidence_threshold)
+            # Sample at 25%, 50%, 75% of the clip; keep all bird detections
+            offsets = [max(0, int(duration * pct)) for pct in (0.25, 0.50, 0.75)]
+            if frame_offset > 0:
+                offsets = [min(frame_offset, int(duration) - 1)] + offsets
+            offsets = list(dict.fromkeys(offsets))  # deduplicate preserving order
+
+            all_detections = []
+            for seek in offsets:
+                with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                    frame_path = tmp.name
+                try:
+                    if not extract_frame(video_path, seek, frame_path):
+                        continue
+                    frame = preprocess_frame(frame_path, (w, h))
+                    dets = run_inference(interpreter, frame, labels, confidence_threshold)
+                    log.info("Frame @%ds: %s", seek, [(d["label"], d["confidence"]) for d in dets])
+                    all_detections.extend(dets)
+                finally:
+                    try:
+                        os.unlink(frame_path)
+                    except OSError:
+                        pass
+
+            # Keep highest-confidence detection per label
+            best: dict[str, dict] = {}
+            for d in all_detections:
+                if d["label"] not in best or d["confidence"] > best[d["label"]]["confidence"]:
+                    best[d["label"]] = d
+            detections = list(best.values())
             publish_result(mqtt_client, mqtt_topic, video_path, detections)
         except Exception as exc:
             log.error("Error processing %s: %s", filename, exc)
             try:
                 publish_result(mqtt_client, mqtt_topic, video_path, [])
             except Exception:
-                pass
-        finally:
-            try:
-                os.unlink(frame_path)
-            except OSError:
                 pass
 
 
