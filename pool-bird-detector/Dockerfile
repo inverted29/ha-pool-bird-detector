@@ -1,5 +1,4 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
-FROM $BUILD_FROM
+FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -10,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     ca-certificates \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir --break-system-packages \
@@ -18,6 +18,6 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 COPY rootfs /
 
-RUN chmod a+x \
-    /usr/bin/detect.py \
-    /etc/services.d/pool-bird-detector/run
+RUN chmod a+x /usr/bin/detect.py /run.sh
+
+CMD ["/bin/bash", "/run.sh"]
