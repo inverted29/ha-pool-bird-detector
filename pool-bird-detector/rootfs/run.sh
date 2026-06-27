@@ -17,14 +17,10 @@ MODEL_PATH="$MODEL_DIR/detect.tflite"
 LABELS_PATH="$MODEL_DIR/labelmap.txt"
 
 if [ ! -f "$MODEL_PATH" ]; then
-    echo "[bird-detector] Downloading TFLite model..."
+    echo "[bird-detector] Downloading EfficientDet-Lite2 model..."
     mkdir -p "$MODEL_DIR"
-    wget -q -O /tmp/model.zip \
-        "https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip"
-    unzip -o /tmp/model.zip -d "$MODEL_DIR"
-    rm /tmp/model.zip
-    mv "$MODEL_DIR"/*.tflite "$MODEL_PATH" 2>/dev/null || true
-    mv "$MODEL_DIR"/labelmap.txt "$LABELS_PATH" 2>/dev/null || true
+    wget -q -O "$MODEL_PATH" \
+        "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/object_detection/android/lite-model_efficientdet_lite2_detection_metadata_1.tflite"
     if [ ! -f "$LABELS_PATH" ]; then
         cat > "$LABELS_PATH" << 'LABELS'
 ???

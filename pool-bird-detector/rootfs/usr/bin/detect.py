@@ -33,6 +33,28 @@ def load_labels(path: str) -> list[str]:
         return [line.strip() for line in f.readlines()]
 
 
+def load_labels_from_model(model_path: str) -> list[str] | None:
+    """Extract COCO label list from EfficientDet-Lite model metadata."""
+    try:
+        import zipfile, io
+        with open(model_path, "rb") as f:
+            data = f.read()
+        # The TFLite flatbuffer embeds a zip of metadata files
+        # Find the zip magic bytes
+        idx = data.rfind(b"PK\x03\x04")
+        if idx == -1:
+            return None
+        zdata = io.BytesIO(data[idx:])
+        with zipfile.ZipFile(zdata) as zf:
+            for name in zf.namelist():
+                if "label" in name.lower() and name.endswith(".txt"):
+                    content = zf.read(name).decode("utf-8")
+                    return [line.strip() for line in content.splitlines() if line.strip()]
+    except Exception as e:
+        log.warning("Could not extract labels from model metadata: %s", e)
+    return None
+
+
 def extract_frame(video_path: str, offset_seconds: int, out_path: str) -> bool:
     """Extract a single JPEG frame from the video at the given offset."""
     # Clamp offset so we don't seek past end of a short clip
@@ -250,12 +272,17 @@ def main():
     parser.add_argument("--frame-offset", type=int, default=3)
     args = parser.parse_args()
 
-    labels = load_labels(args.labels)
-    log.info("Loaded %d labels", len(labels))
-
     interpreter = tflite.Interpreter(model_path=args.model)
     interpreter.allocate_tensors()
     log.info("Model loaded: %s", args.model)
+
+    # Prefer labels embedded in model metadata (EfficientDet-Lite), fall back to file
+    labels = load_labels_from_model(args.model)
+    if labels:
+        log.info("Loaded %d labels from model metadata", len(labels))
+    else:
+        labels = load_labels(args.labels)
+        log.info("Loaded %d labels from file", len(labels))
 
     client = mqtt.Client(client_id="pool_bird_detector")
     if args.mqtt_user:
