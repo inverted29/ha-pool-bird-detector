@@ -5,7 +5,7 @@ Watches `/media/pool_motion/` for new `.mp4` clips (written by a Blink camera au
 ## Installation
 
 1. In HA, go to **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
-2. Add: `https://github.com/arendowden/ha-pool-bird-detector`
+2. Add: `https://github.com/inverted29/ha-pool-bird-detector`
 3. Find **Pool Bird Detector** and install it
 4. Configure options (see below) and start
 
