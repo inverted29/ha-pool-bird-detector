@@ -150,6 +150,51 @@ def run_inference(
     return detections
 
 
+def publish_discovery(client: mqtt.Client, state_topic: str, manufacturer: str = "Aren") -> None:
+    """Publish MQTT discovery configs so HA auto-creates entities."""
+    device = {"identifiers": ["pool_bird_detector"], "name": "Pool Bird Detector", "manufacturer": manufacturer}
+
+    configs = [
+        (
+            "homeassistant/binary_sensor/pool_bird_detector/bird_detected/config",
+            {
+                "name": "Pool Bird Detected",
+                "unique_id": "pool_bird_detector_bird_detected",
+                "state_topic": state_topic,
+                "value_template": "{{ value_json.bird_detected }}",
+                "payload_on": "ON",
+                "payload_off": "OFF",
+                "device_class": "occupancy",
+                "device": device,
+            },
+        ),
+        (
+            "homeassistant/sensor/pool_bird_detector/confidence/config",
+            {
+                "name": "Pool Bird Detection Confidence",
+                "unique_id": "pool_bird_detector_confidence",
+                "state_topic": state_topic,
+                "value_template": "{{ value_json.confidence }}",
+                "device": device,
+            },
+        ),
+        (
+            "homeassistant/sensor/pool_bird_detector/last_file/config",
+            {
+                "name": "Pool Bird Detection Last File",
+                "unique_id": "pool_bird_detector_last_file",
+                "state_topic": state_topic,
+                "value_template": "{{ value_json.file }}",
+                "device": device,
+            },
+        ),
+    ]
+
+    for topic, payload in configs:
+        client.publish(topic, json.dumps(payload), retain=True)
+        log.info("Discovery published: %s", topic)
+
+
 def publish_result(client: mqtt.Client, topic: str, video_path: str, detections: list[dict]):
     bird_detections = [d for d in detections if d["label"].lower() in BIRD_LABELS]
     has_bird = len(bird_detections) > 0
@@ -157,7 +202,7 @@ def publish_result(client: mqtt.Client, topic: str, video_path: str, detections:
 
     payload = {
         "file": os.path.basename(video_path),
-        "bird_detected": has_bird,
+        "bird_detected": "ON" if has_bird else "OFF",
         "confidence": top_confidence,
         "detections": detections,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -290,6 +335,8 @@ def main():
     client.connect(args.mqtt_host, args.mqtt_port, keepalive=60)
     client.loop_start()
     log.info("MQTT connected to %s:%d", args.mqtt_host, args.mqtt_port)
+
+    publish_discovery(client, args.mqtt_topic)
 
     try:
         watch_and_process(

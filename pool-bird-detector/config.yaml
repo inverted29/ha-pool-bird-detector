@@ -1,5 +1,5 @@
 name: Pool Bird Detector
-version: "1.1.0"
+version: "1.2.0"
 slug: pool_bird_detector
 description: Watches /media/pool_motion/ for new .mp4 clips, extracts a frame, runs TFLite MobileNet COCO classification, and publishes bird/duck detection results to MQTT.
 url: https://github.com/arendowden/ha-pool-bird-detector
