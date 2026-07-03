@@ -290,11 +290,12 @@ def watch_and_process(
             except ValueError:
                 duration = 10.0
 
-            # Sample at 25%, 50%, 75% of the clip; keep all bird detections
-            offsets = [max(0, int(duration * pct)) for pct in (0.25, 0.50, 0.75)]
-            if frame_offset > 0:
-                offsets = [min(frame_offset, int(duration) - 1)] + offsets
-            offsets = list(dict.fromkeys(offsets))  # deduplicate preserving order
+            # Sample every 5 seconds across the full clip
+            interval = 5
+            offsets = list(range(0, max(1, int(duration)), interval))
+            if not offsets:
+                offsets = [0]
+            offsets = list(dict.fromkeys(offsets))  # deduplicate
 
             all_detections = []
             for seek in offsets:

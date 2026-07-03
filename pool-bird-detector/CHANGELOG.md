@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+- Sample a frame every 5 seconds across the full clip instead of just 3 fixed points — reduces chance of missing a duck that swims through briefly
+
 ## 1.3.1
 - Remove unused imports (`re`, `pathlib.Path`) from detect.py
 - Remove debug logging (>=0.05 detections) now that model is confirmed working
