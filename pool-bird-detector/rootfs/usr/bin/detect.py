@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Pool Bird Detector — watches a directory for new .mp4 files, extracts a frame,
-runs TFLite MobileNet SSD COCO inference, and publishes results to MQTT.
+Pool Bird Detector — watches a directory for new .mp4 files, extracts frames,
+runs TFLite EfficientDet-Lite2 COCO inference, and publishes results to MQTT.
 """
 
 import argparse
 import json
 import logging
 import os
-import re
 import subprocess
 import tempfile
 import time
-from pathlib import Path
 
 import numpy as np
 import paho.mqtt.client as mqtt
@@ -141,11 +139,6 @@ def run_inference(
         label_idx = int(class_ids[i])
         label = labels[label_idx] if label_idx < len(labels) else f"class_{label_idx}"
         detections.append({"label": label, "confidence": round(score, 4), "box": boxes[i].tolist()})
-
-    # Log all detections above 0.05 regardless of threshold, for debugging
-    debug = sorted(zip(scores[:count], [labels[int(c)] if int(c) < len(labels) else f"class_{int(c)}" for c in class_ids[:count]]), reverse=True)
-    visible = [(label, round(s, 3)) for s, label in debug if s >= 0.05]
-    log.info("All detections (>=0.05): %s", visible if visible else "none")
 
     return detections
 

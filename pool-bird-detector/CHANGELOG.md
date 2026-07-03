@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+- Remove unused imports (`re`, `pathlib.Path`) from detect.py
+- Remove debug logging (>=0.05 detections) now that model is confirmed working
+- Update README: correct model name, payload format, automation example, and entity list
+
 ## 1.3.0
 - Add `Pool Bird Total Detections` sensor: cumulative count of bird detections, persisted to `/data/bird_count.json` across restarts, published retained to `pool_motion/bird_count`
 
