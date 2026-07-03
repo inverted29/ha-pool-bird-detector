@@ -290,8 +290,8 @@ def watch_and_process(
             except ValueError:
                 duration = 10.0
 
-            # Sample every 5 seconds across the full clip
-            interval = 5
+            # Sample every 2 seconds across the full clip
+            interval = 2
             offsets = list(range(0, max(1, int(duration)), interval))
             if not offsets:
                 offsets = [0]

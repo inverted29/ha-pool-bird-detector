@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.1
+- Tighten frame sampling interval from 5s to 2s — prevents missing ducks that are only visible for a few seconds
+
 ## 1.4.0
 - Sample a frame every 5 seconds across the full clip instead of just 3 fixed points — reduces chance of missing a duck that swims through briefly
 
